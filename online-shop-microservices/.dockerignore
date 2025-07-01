@@ -1,0 +1,28 @@
+# Maven-related
+target/
+.mvn/
+.idea/
+*.iml
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Logs
+*.log
+
+# Build artifacts
+*.jar
+*.war
+*.class
+
+# Docker itself
+Dockerfile
+docker-compose.yml
+
+# Env
+.env

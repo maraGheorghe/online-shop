@@ -1,0 +1,119 @@
+services:
+  zoo1:
+    image: confluentinc/cp-zookeeper:7.8.0
+    hostname: zoo1
+    container_name: zoo1
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_SERVERS: zoo1:2888:3888
+    networks:
+      - kafka-net
+
+  kafka1:
+    image: confluentinc/cp-kafka:7.8.0
+    hostname: kafka1
+    container_name: kafka1
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+      - "9999:9999"
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka1:19092,EXTERNAL://${DOCKER_HOST_IP:-127.0.0.1}:9092,DOCKER://host.docker.internal:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,DOCKER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_ZOOKEEPER_CONNECT: "zoo1:2181"
+      KAFKA_BROKER_ID: 1
+      KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_JMX_PORT: 9999
+      KAFKA_JMX_HOSTNAME: ${DOCKER_HOST_IP:-127.0.0.1}
+      KAFKA_AUTHORIZER_CLASS_NAME: kafka.security.authorizer.AclAuthorizer
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "true"
+    depends_on:
+      - zoo1
+    networks:
+      - kafka-net
+
+  order-api:
+    build:
+      context: online-shop-microservices
+      dockerfile: order-api/Dockerfile
+    ports:
+      - "8080:8080"
+    networks:
+      - backend
+      - kafka-net
+
+  order-processor:
+    build:
+      context: online-shop-microservices
+      dockerfile: order-processor/Dockerfile
+    ports:
+      - "8081:8081"
+    networks:
+      - backend
+      - kafka-net
+
+  postgres-db1:
+    image: postgres:15
+    container_name: postgres-db1
+    environment:
+      POSTGRES_USER: mara
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: onlineshop
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata1:/var/lib/postgresql/data
+    networks:
+      - backend
+
+  postgres-db2:
+    image: postgres:15
+    container_name: postgres-db2
+    environment:
+      POSTGRES_USER: mara
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: onlineorders
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata2:/var/lib/postgresql/data
+    networks:
+      - backend
+
+  ui-customer:
+    build:
+      context: online-shop-customer-ui
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    networks:
+      - backend
+    stdin_open: true
+    tty: true
+
+  ui-store:
+    build:
+      context: online-shop-store-ui
+      dockerfile: Dockerfile
+    ports:
+      - "5174:5174"
+    networks:
+      - backend
+    stdin_open: true
+    tty: true
+
+
+volumes:
+  pgdata1:
+  pgdata2:
+
+networks:
+  backend:
+  kafka-net:
